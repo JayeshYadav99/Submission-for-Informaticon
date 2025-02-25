@@ -1,6 +1,6 @@
 const Footer = () => {
   return (
-    <footer className="bg-white border-t mt-16">
+    <footer className="bg-slate-200  mt-16">
       <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div>
           <h3 className="font-semibold mb-4">About Us</h3>
@@ -67,7 +67,7 @@ const Footer = () => {
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 py-4 border-t">
+      <div className="max-w-7xl mx-auto px-4 py-4 ">
         <p className="text-sm text-center text-gray-600">
           © 2025 Store. All rights reserved.
         </p>

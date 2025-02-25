@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, ShoppingCart, Settings, Menu } from "lucide-react";
+import { Heart, ShoppingCart, Settings, Menu, Store } from "lucide-react";
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -14,8 +14,9 @@ const Navbar = () => {
             >
               <Menu className="w-6 h-6 text-gray-600" />
             </button>
-            <a href="#" className="text-indigo-600 font-semibold">
-              Store
+            <a href="#" className="flex items-center space-x-2 text-indigo-600">
+              <Store className="w-8 h-8" />
+              <span className="font-semibold text-lg">Store</span>
             </a>
           </div>
           <nav className="hidden md:flex items-center space-x-8">

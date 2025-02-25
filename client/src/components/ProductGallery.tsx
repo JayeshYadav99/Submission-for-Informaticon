@@ -1,115 +1,176 @@
-import { Heart, Search, Star, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
-import { Product, ProductGalleryProps, SortOption } from "../types/product";
-const ITEMS_PER_PAGE = 6;
-const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
-  const [priceRange, setPriceRange] = useState(500);
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Product, Category, SortOption } from "../types/product";
+import { ITEMS_PER_PAGE } from '../constants';
+import { useDebounce } from '../hooks/useDebounce';
+import CategoryList from "./CategoryList";
+import ProductSkeleton from "./ProductSkelton";
+import { useQuery } from 'react-query';
+interface ProductGalleryProps {
+  setIsFilterOpen: (isOpen: boolean) => void;
+}
+import { fetchProducts, fetchCategories } from '../utils';
+const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
+  // const [products, setProducts] = useState<Product[]>([]);
+  // const [categories, setCategories] = useState<Category[]>([]);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
+  const [isLocalFilterOpen, setIsLocalFilterOpen] = useState(false);
+
+  const [priceRange, setPriceRange] = useState(2000);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("featured");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-  // Filter and sort products
+  // Debounced search query for performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Use React Query to fetch products
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    error: productsError,
+  } = useQuery('products', fetchProducts);
+
+  // Use React Query to fetch categories
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useQuery('categories', fetchCategories);
+
+  const loading = productsLoading || categoriesLoading;
+  const error = productsError || categoriesError;
+
+  const products: Product[] = productsData?.products || [];
+  const categories: Category[] = categoriesData || [];
+
+
+
   const filteredProducts = useMemo(() => {
     return products
-      .filter((product: Product) => {
-        // Search filter
-        const matchesSearch = product.name
+      .filter(product => {
+        const matchesSearch = product.title
           .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+          .includes(debouncedSearchQuery.toLowerCase());
 
-        // Category filter
         const matchesCategory =
           selectedCategories.length === 0 ||
           selectedCategories.includes(product.category);
 
-        // Price filter
         const matchesPrice = product.price <= priceRange;
 
         return matchesSearch && matchesCategory && matchesPrice;
       })
-      .sort((a: Product, b: Product) => {
+      .sort((a, b) => {
         switch (sortBy) {
-          case "price_asc":
+          case 'price_asc':
             return a.price - b.price;
-          case "price_desc":
+          case 'price_desc':
             return b.price - a.price;
-          case "rating":
+          case 'rating':
             return b.rating - a.rating;
           default:
             return 0;
         }
       });
-  }, [searchQuery, selectedCategories, priceRange, sortBy]);
+  }, [products, debouncedSearchQuery, selectedCategories, priceRange, sortBy]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredProducts, currentPage]);
 
-  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategories, priceRange, sortBy]);
 
-  const handlePageChange = (page: number) => {
+
+  const toggleCategory = useCallback((category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+    setCurrentPage(1);
+  }, []);
+
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-    // Scroll to top of product grid
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+
+
+  // Mobile filter handlers
+  // When the local filter state changes, update the parent's state.
+  useEffect(() => {
+    setIsFilterOpen(isLocalFilterOpen);
+  }, [isLocalFilterOpen, setIsFilterOpen]);
+
+  // Filter handlers now only update local state.
+  const openFilters = useCallback(() => setIsLocalFilterOpen(true), []);
+  const closeFilters = useCallback(() => setIsLocalFilterOpen(false), []);
+
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error: {String(error)}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Search */}
-      <div className="relative mb-8">
-        <input
-          type="search"
-          placeholder="Search products..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+      {/* Search and Filter Bar */}
+      <div className="flex items-center gap-4 mb-8">
+        <div className="relative flex-1">
+          <input
+            type="search"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+        </div>
+        <button
+          onClick={openFilters}
+          className="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg"
+        >
+          <SlidersHorizontal className="h-5 w-5" />
+          Filters
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block space-y-6">
           <div>
-            <h3 className="font-semibold mb-4 text-gray-900">Categories</h3>
-            <div className="space-y-3">
-              {categories.map((category: { id: string; name: string }) => (
-                <label
-                  key={category.id}
-                  className="flex items-center space-x-2"
-                >
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={selectedCategories.includes(category.id)}
-                    onChange={() => toggleCategory(category.id)}
-                  />
-                  <span className="text-sm text-gray-600">{category.name}</span>
-                </label>
-              ))}
-            </div>
+            <CategoryList
+              categories={categories}
+              selectedCategories={selectedCategories}
+              toggleCategory={toggleCategory}
+            />
           </div>
 
-          <div>
+          <div className="border-2 border-gray-200 p-4 rounded-lg">
             <h3 className="font-semibold mb-4 text-gray-900">Price Range</h3>
             <input
               type="range"
               min="20"
-              max="1000"
+              max="2000"
               value={priceRange}
               onChange={(e) => setPriceRange(Number(e.target.value))}
               className="w-full"
@@ -121,10 +182,79 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
           </div>
         </div>
 
+        {/* Mobile Filter Bottom Sheet */}
+        <div
+          className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${isLocalFilterOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          onClick={closeFilters}
+        />
+        <div
+          className={`fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isLocalFilterOpen ? 'translate-y-0' : 'translate-y-full'
+            }`}
+        >
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Filters</h2>
+              <button onClick={closeFilters}>
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+              <div>
+                <CategoryList
+                  categories={categories}
+                  selectedCategories={selectedCategories}
+                  toggleCategory={toggleCategory}
+                />
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-4 text-gray-900">Price Range</h3>
+                <input
+                  type="range"
+                  min="20"
+                  max="2000"
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between mt-2">
+                  <span className="text-sm text-gray-600">$0</span>
+                  <span className="text-sm text-gray-600">${priceRange}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 pt-4 pb-2 bg-white border-t mt-6">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    setPriceRange(2000);
+                    closeFilters();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={closeFilters}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Product Grid */}
         <div className="md:col-span-3">
           <div className="flex justify-between items-center mb-6">
-            <p className="text-sm text-gray-600">Showing 24 products</p>
+            <p className="text-sm text-gray-600">
+              Showing {paginatedProducts.length} products
+            </p>
             <select
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               value={sortBy}
@@ -136,7 +266,16 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
               <option value="rating">Best Rated</option>
             </select>
           </div>
-          {filteredProducts.length === 0 ? (
+
+          {loading ? (
+            // Show skeleton placeholders while loading
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : paginatedProducts.length === 0 ? (
+            // When loading is done but no products exist (e.g., due to filtering)
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">
                 No products found matching your criteria.
@@ -145,7 +284,7 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
                 onClick={() => {
                   setSearchQuery("");
                   setSelectedCategories([]);
-                  setPriceRange(1000);
+                  setPriceRange(2000);
                   setSortBy("featured");
                 }}
                 className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -154,42 +293,34 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
               </button>
             </div>
           ) : (
+            // Render the grid of product cards if products exist
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {paginatedProducts.map((product: Product) => (
+              {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
                   className="group relative border border-gray-200 rounded-lg overflow-hidden"
                 >
                   <div className="aspect-square relative bg-gray-100">
                     <img
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.name}
+                      src={product.thumbnail || "/placeholder.svg"}
+                      alt={product.title}
+                      loading="lazy"
                       className="object-cover w-full h-full"
                     />
-                    <button className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white shadow-sm">
-                      <Heart className="h-4 w-4 text-gray-600" />
-                    </button>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-medium text-gray-900">
-                      {product.name}
+                    {/* Title */}
+                    <h3 className="font-medium text-gray-900 mb-2 sm:mb-3">
+                      {product.title}
                     </h3>
-                    <div className="flex items-center mt-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < product.rating
-                              ? "text-yellow-400 fill-yellow-400"
-                              : "text-gray-300 fill-gray-300"
-                          }`}
-                        />
-                      ))}
-                      <span className="text-sm text-gray-600 ml-2">
-                        ({product.reviews})
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
+
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3 sm:mb-4">
+                      {product.description}
+                    </p>
+
+                    {/* Price & Add to Cart */}
+                    <div className="flex items-center justify-between">
                       <span className="font-semibold text-gray-900">
                         ${product.price.toFixed(2)}
                       </span>
@@ -203,18 +334,17 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
             </div>
           )}
 
+
           {/* Pagination */}
-          {/* Pagination Controls */}
           {filteredProducts.length > 0 && (
             <div className="flex justify-center items-center mt-8 space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`p-2 rounded-lg ${
-                  currentPage === 1
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                className={`p-2 rounded-lg ${currentPage === 1
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -223,7 +353,6 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
                 const page = index + 1;
                 const isCurrentPage = page === currentPage;
 
-                // Show first page, last page, current page, and pages around current page
                 if (
                   page === 1 ||
                   page === totalPages ||
@@ -233,18 +362,16 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
                     <button
                       key={page}
                       onClick={() => handlePageChange(page)}
-                      className={`px-4 py-2 rounded-lg ${
-                        isCurrentPage
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white text-gray-600 hover:bg-gray-50"
-                      }`}
+                      className={`px-4 py-2 rounded-lg ${isCurrentPage
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
                     >
                       {page}
                     </button>
                   );
                 }
 
-                // Show ellipsis for gaps
                 if (page === currentPage - 2 || page === currentPage + 2) {
                   return (
                     <span key={page} className="px-2">
@@ -259,11 +386,10 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded-lg ${
-                  currentPage === totalPages
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                className={`p-2 rounded-lg ${currentPage === totalPages
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -274,5 +400,4 @@ const ProductGallery = ({ products, categories }: ProductGalleryProps) => {
     </div>
   );
 };
-
 export default ProductGallery;

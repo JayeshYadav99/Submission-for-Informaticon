@@ -1,21 +1,25 @@
 export interface Product {
   id: number;
-  name: string;
-  category: string;
+  title: string;
   price: number;
+  description: string;
+  category: string;
+  thumbnail: string;
   rating: number;
-  reviews: number;
-  image: string;
+  stock: number;
+  brand: string;
+  discountPercentage: number;
 }
 
 export interface Category {
-  id: string;
-  name: string;
+  slug: string,
+  name: string,
+  url: string
 }
 
 export interface ProductGalleryProps {
   products: Product[];
-  categories: Category[];
+  categories: string[];
 }
 
 export type SortOption = "featured" | "price_asc" | "price_desc" | "rating";
