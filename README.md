@@ -8,6 +8,8 @@ This project is a modern, responsive e-commerce product listing page built in Re
 
 Check out the live demo: [https://store-one-rust.vercel.app/](https://store-one-rust.vercel.app/)
 
+Design: https://excalidraw.com/#room=76f0790e34cfacc4f74b,_PZsLCqHahAjtNKzOJuLsQ
+
 ---
 
 ## Key Optimizations in React
