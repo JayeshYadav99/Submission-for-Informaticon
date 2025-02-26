@@ -2,69 +2,81 @@
 
 # E-Commerce Product Listing - React Optimizations
 
-This project is a modern, responsive e-commerce product listing page built in React with a strong focus on performance and user experience. Below is an overview of the key optimizations and best practices implemented in the React application.
+This project is a modern, responsive e-commerce product listing page built in React with a strong focus on performance and user experience. The project demonstrates best practices in React Query, Tailwind CSS, server-side filtering, skeleton loaders, and more.
+
+## Live Demo
+
+Check out the live demo: [https://store-one-rust.vercel.app/](https://store-one-rust.vercel.app/)
 
 ---
 
 ## Key Optimizations in React
 
-### 1. **Efficient Data Fetching with React Query**
+### 1. Efficient Data Fetching with React Query
 - **Caching & Automatic Refetching:**  
-  We use React Query to fetch products and categories from our custom Node.js server. This ensures that data is cached and only refetched when needed, reducing network requests and speeding up navigation.
+  Uses React Query to fetch products and categories from the custom Node.js server. Data is cached and only refetched when necessary, reducing network requests.
 - **Keep-Previous Data:**  
-  The `keepPreviousData: true` option is used so that the previous page's data remains visible while new data is loading, resulting in a smoother UI transition during pagination and filter changes.
+  The `keepPreviousData: true` option ensures smooth transitions during pagination and filter changes.
 
-### 2. **Debounced Search Input**
+### 2. Debounced Search Input
 - **Reduced API Calls:**  
-  The search input is debounced using a custom `useDebounce` hook. This prevents excessive API calls as the user types, ensuring that the application only queries the backend after the user has paused, improving responsiveness and reducing load.
+  Implements a custom `useDebounce` hook to debounce the search input, preventing excessive API calls as users type.
 
-### 3. **Optimized Filtering & Sorting**
+### 3. Optimized Filtering & Sorting
 - **Server-Side Filtering:**  
-  Filters such as category, price range, search query, and sort options are applied on the server side. This offloads heavy filtering logic from the client and only returns the necessary subset of products.
+  Filtering (category, price range, search query, sort order) is offloaded to the server, returning only the relevant subset of products.
 - **State Reset on Filter Change:**  
-  The current page resets to 1 automatically whenever filters change, ensuring that users always see relevant, updated results without manual intervention.
+  The current page resets automatically when filters change to ensure updated results.
 
-### 4. **Component Memoization & Clean Event Handlers**
+### 4. Component Memoization & Clean Event Handlers
 - **useCallback & useEffect:**  
-  Critical event handlers like pagination and category toggling are wrapped in `useCallback` to avoid unnecessary re-creations on each render.
+  Critical event handlers (pagination, category toggling) are wrapped in `useCallback` to reduce unnecessary re-creations on re-renders.
 - **Separation of Concerns:**  
-  Components such as `CategoryList`, `PriceRangeOptions`, and `SortDropdown` are modularized and optimized for reusability, reducing render overhead and improving maintainability.
+  Modular components such as `CategoryList`, `PriceRangeOptions`, and `SortDropdown` improve code readability and performance.
 
-### 5. **Skeleton Loaders & Lazy Loading**
+### 5. Skeleton Loaders & Lazy Loading
 - **Improved Perceived Performance:**  
-  Skeleton loaders are shown while product and category data are being fetched, enhancing the user experience by providing immediate visual feedback.
+  Skeleton loaders are displayed while data is being fetched, enhancing the user experience.
 - **Lazy Loading Images:**  
-  Product images use the `loading="lazy"` attribute to defer loading offscreen images, reducing initial page load time and saving bandwidth.
+  Product images use the `loading="lazy"` attribute to defer loading offscreen images, reducing initial load time.
 
-### 6. **Tailwind CSS for Consistent and Fast Styling**
+### 6. Tailwind CSS for Consistent and Fast Styling
 - **Utility-First Styling:**  
-  Tailwind CSS is used extensively to build a uniform, responsive UI. This not only speeds up development but also minimizes custom CSS overhead.
+  Tailwind CSS is used for a consistent, responsive UI, speeding up development and reducing custom CSS.
 - **Responsive & Mobile-First Design:**  
-  The application is designed with a mobile-first approach, using Tailwind’s responsive utilities to ensure optimal performance and user experience across devices.
+  The design adapts to various screen sizes, with a mobile bottom sheet filter and a desktop sidebar.
 
 ---
 
-## Project Structure (Focus on React Optimizations)
+## Project Structure
 
 ```
-client/
-├── src/
-│   ├── components/
-│   │   ├── ProductGallery.tsx       # Main component with optimizations (debounced search, memoization, skeleton loaders)
-│   │   ├── CategoryList.tsx         # Modular category filter with custom checkbox styling
-│   │   ├── helpers/
-│   │   │   ├── PriceRangeOptions.tsx  # Predefined price range options with toggle and custom UI
-│   │   │   └── SortDropDown.tsx       # Tailwind-styled dropdown for sorting
-│   │   └── skeletons/
-│   │       ├── ProductSkeleton.tsx    # Skeleton component for product cards
-│   │       └── CategoryListSkeleton.tsx  # Skeleton component for categories
-│   ├── hooks/
-│   │   └── useDebounce.ts             # Custom hook for debouncing search input
-│   ├── utils/
-│   │   ├── fetchProducts.ts           # API call using React Query with server-side filtering
-│   │   └── fetchCategories.ts         # API call to fetch categories
-│   ├── App.tsx
+ecommerce-product-listing/
+├── server/
+│   ├── server.js           # Express server handling filtering & serving local JSON data
+│   ├── products.json       # Local JSON data for products
+│   ├── categories.json     # Local JSON data for categories
+│   └── package.json
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ProductGallery.tsx       # Main product listing component with optimizations
+│   │   │   ├── CategoryList.tsx         # Category filtering UI with custom checkbox indicator
+│   │   │   ├── helpers/
+│   │   │   │   ├── PriceRangeOptions.tsx  # Predefined price range options with toggle and custom UI
+│   │   │   │   └── SortDropDown.tsx       # Tailwind-styled sort dropdown
+│   │   │   └── skeletons/
+│   │   │       ├── ProductSkeleton.tsx    # Skeleton component for product cards
+│   │   │       └── CategoryListSkeleton.tsx  # Skeleton component for categories
+│   │   ├── hooks/
+│   │   │   └── useDebounce.ts             # Custom debounce hook
+│   │   ├── utils/
+│   │   │   ├── fetchProducts.ts           # API utility for fetching products
+│   │   │   └── fetchCategories.ts         # API utility for fetching categories
+│   │   └── App.tsx
+│   ├── package.json
 │   └── tailwind.config.js
+├── README.md
 └── package.json
 ```
 
@@ -72,33 +84,37 @@ client/
 
 ## Running the Application
 
-1. **Install Dependencies**  
-   Navigate to the `client` directory and install the necessary packages:
-
+### Backend
+1. Navigate to the `server` directory:
    ```bash
+   cd server
    npm install
+   npm run start
    ```
+   The backend server listens on `http://localhost:3000` (adjust as needed).
 
-2. **Run the Development Server**  
-   Start the React application:
-
+### Frontend
+1. Navigate to the `client` directory:
    ```bash
+   cd client
+   npm install
    npm run dev
    ```
-
-3. **Ensure Backend is Running**  
-   Your custom Node.js/Express server (which handles filtering and returns local JSON data) should be running, typically on `http://localhost:3000`.
+   This starts the React development server.
 
 ---
 
-## Final Thoughts
+## Optimizations Focus
 
-This project demonstrates how to build a high-performance e-commerce product listing page using React optimizations. The use of React Query, debounced search, skeleton loaders, and Tailwind CSS not only enhances the user experience but also ensures that the app remains responsive and maintainable as it scales.
-
-Feel free to explore and extend the optimizations as needed!
+- **React Query Caching:**  
+  Ensures that data is cached and reduces unnecessary network calls.
+- **Debounced Search:**  
+  Improves responsiveness by reducing API calls during typing.
+- **Server-Side Filtering:**  
+  Offloads heavy filtering logic from the client.
+- **Skeleton Loaders:**  
+  Enhance the perceived performance while waiting for data.
+- **Tailwind CSS Styling:**  
+  Uniform and responsive design using utility classes.
 
 ---
-
-
-
-You can customize this README further to fit your project's exact details, but it should give a good overview of the optimizations and structure in your React application.
