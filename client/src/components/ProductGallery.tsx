@@ -1,115 +1,87 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useQuery } from "react-query";
 import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { Product, Category, SortOption } from "../types/product";
-import { ITEMS_PER_PAGE } from '../constants';
-import { useDebounce } from '../hooks/useDebounce';
+import { useDebounce } from "../hooks/useDebounce";
 import CategoryList from "./CategoryList";
-import ProductSkeleton from "./ProductSkelton";
-import { useQuery } from 'react-query';
+import ProductSkeleton from "./helpers/skeletons/ProductSkeleton";
+import { ITEMS_PER_PAGE } from "../constants";
+import { fetchCategories, fetchProducts } from "../utils";
+import PriceRangeOptions from "./helpers/PriceRangeOptions";
+import SortDropdown from "./helpers/SortDropdown"
+import CategoryListSkeleton from "./helpers/skeletons/CategoryListSkeleton";
+
+
+
 interface ProductGalleryProps {
   setIsFilterOpen: (isOpen: boolean) => void;
 }
-import { fetchProducts, fetchCategories } from '../utils';
-const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
 
+const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
+  // Local state for filtering and pagination
   const [isLocalFilterOpen, setIsLocalFilterOpen] = useState(false);
-  const [priceRange, setPriceRange] = useState(2000);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('featured');
+  const [selectedCategory, setSelectedCategory] = useState(""); // single category filtering
+
+  const [priceRange, setPriceRange] = useState<[number, number]>([1, 7999]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("featured"); // can be "price_asc", "price_desc", "rating", etc.
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Debounced search query for performance
+  // Debounce the search query to avoid excessive API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Use React Query to fetch products
-  const {
-    data: productsData,
-    isLoading: productsLoading,
-    error: productsError,
-  } = useQuery('products', fetchProducts);
-
-  // Use React Query to fetch categories
-  const {
-    data: categoriesData,
-    isLoading: categoriesLoading,
-    error: categoriesError,
-  } = useQuery('categories', fetchCategories);
-
-  const loading = productsLoading || categoriesLoading;
-  const error = productsError || categoriesError;
-
-  const products: Product[] = productsData?.products || [];
-  const categories: Category[] = categoriesData || [];
-
-
-
-  const filteredProducts = useMemo(() => {
-    return products
-      .filter(product => {
-        const matchesSearch = product.title
-          .toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase());
-
-        const matchesCategory =
-          selectedCategories.length === 0 ||
-          selectedCategories.includes(product.category);
-
-        const matchesPrice = product.price <= priceRange;
-
-        return matchesSearch && matchesCategory && matchesPrice;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case 'price_asc':
-            return a.price - b.price;
-          case 'price_desc':
-            return b.price - a.price;
-          case 'rating':
-            return b.rating - a.rating;
-          default:
-            return 0;
-        }
-      });
-  }, [products, debouncedSearchQuery, selectedCategories, priceRange, sortBy]);
-
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-  const paginatedProducts = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredProducts, currentPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategories, priceRange, sortBy]);
-
-
-  const toggleCategory = useCallback((category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
-    setCurrentPage(1);
-  }, []);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-
-
-  // Mobile filter handlers
-  // When the local filter state changes, update the parent's state.
+  // Sync local filter state with parent's state for UI purposes (e.g., scroll lock)
   useEffect(() => {
     setIsFilterOpen(isLocalFilterOpen);
   }, [isLocalFilterOpen, setIsFilterOpen]);
 
-  // Filter handlers now only update local state.
+  // Reset page when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, selectedCategory, priceRange, sortBy]);
+
+  // React Query fetch with a query key that includes all filter parameters.
+  const { data, isLoading, error } = useQuery(
+    [
+      "products",
+      {
+        searchQuery: debouncedSearchQuery,
+        selectedCategory,
+        currentPage,
+        priceRange,
+        sortBy,
+      },
+    ],
+    fetchProducts,
+    { keepPreviousData: true }
+  );
+
+  // React Query: Fetch categories from our custom server
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useQuery("categories", fetchCategories);
+
+
+  // Assume the server returns an object with "total" and "products" array.
+  const totalProducts = data?.total || 0;
+  const totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
+  const products = data?.products || [];
+
+  // Handler for pagination
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // For category filtering, we toggle the category (or clear if already selected)
+  const handleCategoryChange = useCallback((category: string) => {
+    setSelectedCategory((prev) => (prev === category ? "" : category));
+    setCurrentPage(1);
+  }, []);
+
   const openFilters = useCallback(() => setIsLocalFilterOpen(true), []);
   const closeFilters = useCallback(() => setIsLocalFilterOpen(false), []);
-
 
   if (error) {
     return (
@@ -153,40 +125,29 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         {/* Desktop Sidebar */}
         <div className="hidden md:block space-y-6">
-          <div>
-            <CategoryList
-              categories={categories}
-              selectedCategories={selectedCategories}
-              toggleCategory={toggleCategory}
-            />
-          </div>
 
-          <div className="border-2 border-gray-200 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4 text-gray-900">Price Range</h3>
-            <input
-              type="range"
-              min="20"
-              max="2000"
-              value={priceRange}
-              onChange={(e) => setPriceRange(Number(e.target.value))}
-              className="w-full"
+          {/* Conditionally render skeleton or CategoryList in mobile */}
+          {categoriesLoading ? (
+            <CategoryListSkeleton />
+          ) : (
+            <CategoryList
+              categories={categoriesData || []}
+              selectedCategories={[selectedCategory]}
+              toggleCategory={handleCategoryChange}
             />
-            <div className="flex justify-between mt-2">
-              <span className="text-sm text-gray-600">$0</span>
-              <span className="text-sm text-gray-600">${priceRange}</span>
-            </div>
-          </div>
+          )}
+
+          <PriceRangeOptions selectedRange={priceRange} onChange={setPriceRange} />
+
         </div>
 
         {/* Mobile Filter Bottom Sheet */}
         <div
-          className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${isLocalFilterOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
+          className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${isLocalFilterOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
           onClick={closeFilters}
         />
         <div
-          className={`fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isLocalFilterOpen ? 'translate-y-0' : 'translate-y-full'
-            }`}
+          className={`fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isLocalFilterOpen ? "translate-y-0" : "translate-y-full"}`}
         >
           <div className="p-4">
             <div className="flex items-center justify-between mb-6">
@@ -195,39 +156,28 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-
             <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-              <div>
+              {/* Conditionally render skeleton or CategoryList in mobile */}
+              {categoriesLoading ? (
+                <CategoryListSkeleton />
+              ) : (
                 <CategoryList
-                  categories={categories}
-                  selectedCategories={selectedCategories}
-                  toggleCategory={toggleCategory}
+                  categories={categoriesData || []}
+                  selectedCategories={[selectedCategory]}
+                  toggleCategory={handleCategoryChange}
                 />
-              </div>
-
+              )}
               <div>
                 <h3 className="font-semibold mb-4 text-gray-900">Price Range</h3>
-                <input
-                  type="range"
-                  min="20"
-                  max="2000"
-                  value={priceRange}
-                  onChange={(e) => setPriceRange(Number(e.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between mt-2">
-                  <span className="text-sm text-gray-600">$0</span>
-                  <span className="text-sm text-gray-600">${priceRange}</span>
-                </div>
+                <PriceRangeOptions selectedRange={priceRange} onChange={setPriceRange} />
               </div>
             </div>
-
             <div className="sticky bottom-0 pt-4 pb-2 bg-white border-t mt-6">
               <div className="flex gap-4">
                 <button
                   onClick={() => {
-                    setSelectedCategories([]);
-                    setPriceRange(2000);
+                    setSelectedCategory("");
+                    setPriceRange([1, 7999]);
                     closeFilters();
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700"
@@ -248,39 +198,28 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
         {/* Product Grid */}
         <div className="md:col-span-3">
           <div className="flex justify-between items-center mb-6">
-            <p className="text-sm text-gray-600">
-              Showing {paginatedProducts.length} products
-            </p>
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-            >
-              <option value="featured">Featured</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="rating">Best Rated</option>
-            </select>
+            <p className="text-sm text-gray-600">Showing {products.length} products</p>
+            <SortDropdown
+              sortValue={sortBy}
+              onChange={(val) => setSortBy(val)}
+            />
+
           </div>
 
-          {loading ? (
-            // Show skeleton placeholders while loading
+          {isLoading ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
-          ) : paginatedProducts.length === 0 ? (
-            // When loading is done but no products exist (e.g., due to filtering)
+          ) : products.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">
-                No products found matching your criteria.
-              </p>
+              <p className="text-gray-500 text-lg">No products found matching your criteria.</p>
               <button
                 onClick={() => {
                   setSearchQuery("");
-                  setSelectedCategories([]);
-                  setPriceRange(2000);
+                  setSelectedCategory("");
+                  setPriceRange([1, 7999]);
                   setSortBy("featured");
                 }}
                 className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -289,13 +228,9 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
               </button>
             </div>
           ) : (
-            // Render the grid of product cards if products exist
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {paginatedProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="group relative border border-gray-200 rounded-lg overflow-hidden"
-                >
+              {products.map((product: any) => (
+                <div key={product.id} className="group relative border border-gray-200 rounded-lg overflow-hidden">
                   <div className="aspect-square relative bg-gray-100">
                     <img
                       src={product.thumbnail || "/placeholder.svg"}
@@ -305,22 +240,14 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
                     />
                   </div>
                   <div className="p-4">
-                    {/* Title */}
-                    <h3 className="font-medium text-gray-900 mb-2 sm:mb-3">
-                      {product.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-3 sm:mb-4">
-                      {product.description}
-                    </p>
-
-                    {/* Price & Add to Cart */}
+                    <h3 className="font-medium text-gray-900 mb-2 sm:mb-3">{product.title}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3 sm:mb-4">{product.description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-900">
-                        ${product.price.toFixed(2)}
-                      </span>
-                      <button type="button" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">
+                      <span className="font-semibold text-gray-900">${product.price.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer"
+                      >
                         Add to Cart
                       </button>
                     </div>
@@ -330,61 +257,33 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
             </div>
           )}
 
-
-          {/* Pagination */}
-          {filteredProducts.length > 0 && (
+          {totalProducts > 0 && (
             <div className="flex justify-center items-center mt-8 space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`p-2 rounded-lg ${currentPage === 1
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
+                className={`p-2 rounded-lg ${currentPage === 1 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-
-              {[...Array(totalPages)].map((_, index) => {
+              {Array.from({ length: totalPages }).map((_, index) => {
                 const page = index + 1;
-                const isCurrentPage = page === currentPage;
-
-                if (
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-4 py-2 rounded-lg ${isCurrentPage
-                        ? "bg-indigo-600 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
-                        }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                }
-
-                if (page === currentPage - 2 || page === currentPage + 2) {
-                  return (
-                    <span key={page} className="px-2">
-                      ...
-                    </span>
-                  );
-                }
-
-                return null;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-4 py-2 rounded-lg ${page === currentPage ? "bg-indigo-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
               })}
-
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`p-2 rounded-lg ${currentPage === totalPages
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
+                className={`p-2 rounded-lg ${currentPage === totalPages ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
               >
                 <ChevronRight className="w-5 h-5" />
@@ -396,4 +295,5 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
     </div>
   );
 };
+
 export default ProductGallery;
