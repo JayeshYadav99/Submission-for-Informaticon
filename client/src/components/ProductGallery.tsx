@@ -59,7 +59,6 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
   const {
     data: categoriesData,
     isLoading: categoriesLoading,
-    error: categoriesError,
   } = useQuery("categories", fetchCategories);
 
 
