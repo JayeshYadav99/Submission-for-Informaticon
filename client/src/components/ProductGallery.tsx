@@ -11,12 +11,8 @@ interface ProductGalleryProps {
 }
 import { fetchProducts, fetchCategories } from '../utils';
 const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
-  // const [products, setProducts] = useState<Product[]>([]);
-  // const [categories, setCategories] = useState<Category[]>([]);
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState<string | null>(null);
-  const [isLocalFilterOpen, setIsLocalFilterOpen] = useState(false);
 
+  const [isLocalFilterOpen, setIsLocalFilterOpen] = useState(false);
   const [priceRange, setPriceRange] = useState(2000);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -324,7 +320,7 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ setIsFilterOpen }) => {
                       <span className="font-semibold text-gray-900">
                         ${product.price.toFixed(2)}
                       </span>
-                      <button className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                      <button type="button" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">
                         Add to Cart
                       </button>
                     </div>
